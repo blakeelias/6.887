@@ -51,5 +51,33 @@ Fixpoint descendents (tr : tree) : list tree :=
 Fixpoint descendentsList (trList : list tree) : list tree :=
   flat_map descendents trList.
 
+Compute prefix "abc" "abcd".
+
+Fixpoint string_eq (str1 str2 : string) : bool :=
+  andb (prefix str1 str2) (prefix str2 str1).
+
+Fixpoint hasValue (val : string) (tr : tree) : bool :=
+  match tr with
+  | Leaf => false
+  | NodeWithValue name value => string_eq val value
+  | NodeWithChildren name tr1 tr2 => false
+  end.
+
+Fixpoint getNodesWithValue (selectedTreeList : list tree) (val : string) : list tree :=
+  filter (hasValue val) selectedTreeList.
+
+Fixpoint hasName (name : string) (tr : tree) : bool :=
+  match tr with
+  | Leaf => false
+  | NodeWithValue n v => string_eq n name
+  | NodeWithChildren n tr1 tr2 => string_eq n name
+  end.
+
+Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree :=
+  filter (hasName name) treeList.
+
+Fixpoint slashNodeName (treeList : list tree) (name : string) : list tree :=
+  getNodesWithNodeName (childrenList treeList) name.
+
 Let n1 = NodeWithValue "number" "6.009".
 
