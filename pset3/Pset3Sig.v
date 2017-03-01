@@ -112,5 +112,33 @@ Fixpoint parents (root tr : tree) : list tree :=
 Fixpoint parentsList (root : tree) (treeList : list tree) : list tree :=
   flat_map (parents root) treeList.
 
-(* Let n1 = NodeWithValue "number" "6.009". *)
+(* Can try constructing a node as follows: 
+Let n1 = NodeWithValue "number" "6.009".
+*)
 
+
+(** Begin proofs below **)
+
+Require Import Pset3Sig.
+Require Import List.
+Require Import Frap.
+
+Theorem no_extra_children: forall root n1 n2 x,
+  In x (parentsList
+    root
+    (childrenWithNodeName
+         (childrenWithNodeName (cons root nil) n1)
+        n2))
+  -> In x (childrenWithNodeName (cons root nil) n1).
+Proof.
+  induction root.
+  simplify.
+  equality.
+  simplify.
+  equality.
+  simplify.
+
+  
+Admitted.
+
+(* problem here... *)
