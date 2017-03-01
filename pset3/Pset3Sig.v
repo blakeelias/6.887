@@ -76,7 +76,7 @@ Fixpoint hasName (name : string) (tr : tree) : bool :=
 Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree :=
   filter (hasName name) treeList.
 
-Fixpoint slashNodeName (treeList : list tree) (name : string) : list tree :=
+Fixpoint childrenWithNodeName (treeList : list tree) (name : string) : list tree :=
   getNodesWithNodeName (childrenList treeList) name.
 
 Fixpoint tree_eq (tr1 tr2 : tree) : bool :=
