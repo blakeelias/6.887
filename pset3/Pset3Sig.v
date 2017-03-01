@@ -41,11 +41,15 @@ end.
 Fixpoint childrenList (trs : list tree) : list tree :=
   flat_map children trs.
 
-(* Fixpoint descendents (trList : list tree) : list tree :=
-  match trList with
-  | nil => nil
-  | a :: l => (a :: l) ++ descendents (childrenList(a)) ++ descendents(childrenList(l))
-end. *)
+Fixpoint descendents (tr : tree) : list tree :=
+  match tr with
+  | Leaf => Leaf :: nil
+  | NodeWithValue name value => NodeWithValue name value :: nil
+  | NodeWithChildren name tr1 tr2 => (NodeWithChildren name tr1 tr2) :: (descendents tr1 ++ descendents tr2)
+  end. 
 
-Eval in compute NodeWithValue "number" "6.009".
+Fixpoint descendentsList (trList : list tree) : list tree :=
+  flat_map descendents trList.
+
+Let n1 = NodeWithValue "number" "6.009".
 
