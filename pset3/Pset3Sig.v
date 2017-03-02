@@ -9,6 +9,7 @@
 Require Import String.
 Require Import List.
 
+
 Inductive tree :=
 | Leaf: tree
 | NodeWithValue: string -> string -> tree
@@ -17,18 +18,27 @@ Inductive tree :=
 (* Then a singleton is just a node without subtrees. *)
 Definition Singleton (n: string) (v: string) := NodeWithValue n v.
 
-Fixpoint name (tr : tree) : string := 
+Inductive xpath : Set :=
+| NodeName (name : string)
+| Value (v : string)
+| Parents
+| Descendents
+| Concat (x1 x2 : xpath).
+
+Definition selection := list tree.
+
+Fixpoint name (tr : tree) : option string := 
   match tr with
-  | Leaf => " "
-  | NodeWithValue name value => name
-  | NodeWithChildren name tr1 tr2 => name
+  | Leaf => None
+  | NodeWithValue name value => Some name
+  | NodeWithChildren name tr1 tr2 => Some name
   end.
 
-Fixpoint value (tr : tree) : string := 
+Fixpoint value (tr : tree) : option string := 
   match tr with
-  | Leaf => " "
-  | NodeWithValue name value => value
-  | NodeWithChildren name tr1 tr2 => " "
+  | Leaf => None
+  | NodeWithValue name value => Some value
+  | NodeWithChildren name tr1 tr2 => None
   end.
 
 Fixpoint children (tr : tree) : list tree :=
@@ -103,7 +113,7 @@ Fixpoint isParent (child parent : tree) : bool :=
   match parent with
   | Leaf => false
   | NodeWithValue name value => false
-  | NodeWithChildren n tr1 tr2 => orb (tree_eq child tr1) (tree_eq child tr2)
+  | NodeWithChildren n tr1 tr2 => (orb (tree_eq child tr1) (tree_eq child tr2))
   end.
 
 Fixpoint parents (root tr : tree) : list tree :=
@@ -117,6 +127,15 @@ Let n1 = NodeWithValue "number" "6.009".
 *)
 
 
+Fixpoint interp (e : xpath) (s : selection) (root : tree) : selection :=
+  match e with
+  | NodeName n => childrenWithNodeName s n
+  | Value v => getNodesWithValue s v
+  | Parents => parentsList root s
+  | Descendents => descendentsList s
+  | Concat e1 e2 => interp e2 (interp e1 s root) root
+  end.
+
 (** Begin proofs below **)
 
 Require Import Pset3Sig.
@@ -124,18 +143,17 @@ Require Import List.
 Require Import Frap.
 
 Theorem no_extra_children: forall root n1 n2 x,
-  In x (parentsList
-    root
-    (childrenWithNodeName
-         (childrenWithNodeName (cons root nil) n1)
-        n2))
-  -> In x (childrenWithNodeName (cons root nil) n1).
+  In x (interp (Concat (NodeName n1)
+                (Concat (NodeName n2)
+                  Parents)) (cons root nil) root)
+  -> In x (interp (NodeName n1) (cons root nil) root).
 Proof.
+  simplify.
   induction root.
   simplify.
+  elim H.
   equality.
   simplify.
-  equality.
   simplify.
 
   
