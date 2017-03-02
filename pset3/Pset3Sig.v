@@ -11,9 +11,12 @@ Require Import List.
 
 
 Inductive tree :=
-| Leaf: list tree -> tree
-| NodeWithValue: string -> string -> list tree -> tree
-| NodeWithChildren: string -> tree -> tree -> list tree -> tree.
+| Leaf: tree
+| NodeWithValue: string -> string -> tree
+| NodeWithChildren: string -> tree -> tree -> tree.
+
+(* Then a singleton is just a node without subtrees. *)
+Definition Singleton (n: string) (v: string) := NodeWithValue n v.
 
 Inductive xpath : Set :=
 | NodeName (name : string)
@@ -25,23 +28,23 @@ Definition selection := list tree.
 
 Fixpoint name (tr : tree) : option string := 
   match tr with
-  | Leaf parent => None
-  | NodeWithValue name value parent => Some name
-  | NodeWithChildren name tr1 tr2 parent => Some name
+  | Leaf => None
+  | NodeWithValue name value => Some name
+  | NodeWithChildren name tr1 tr2 => Some name
   end.
 
 Fixpoint value (tr : tree) : option string := 
   match tr with
-  | Leaf parent => None
-  | NodeWithValue name value parent => Some value
-  | NodeWithChildren name tr1 tr2 parent => None
+  | Leaf => None
+  | NodeWithValue name value => Some value
+  | NodeWithChildren name tr1 tr2 => None
   end.
 
 Fixpoint children (tr : tree) : list tree :=
   match tr with
-  | Leaf parent => nil
-  | NodeWithValue name value parent => nil
-  | NodeWithChildren name tr1 tr2 parent => tr1 :: ( cons tr2 nil )
+  | Leaf => nil
+  | NodeWithValue name value => nil
+  | NodeWithChildren name tr1 tr2 => tr1 :: ( cons tr2 nil )
 end.
 
 Fixpoint childrenList (trs : list tree) : list tree :=
@@ -49,9 +52,9 @@ Fixpoint childrenList (trs : list tree) : list tree :=
 
 Fixpoint descendents (tr : tree) : list tree :=
   match tr with
-  | Leaf _ => tr :: nil
-  | NodeWithValue _ _ _ => tr :: nil
-  | NodeWithChildren name tr1 tr2 parent => tr :: (descendents tr1 ++ descendents tr2)
+  | Leaf => Leaf :: nil
+  | NodeWithValue name value => NodeWithValue name value :: nil
+  | NodeWithChildren name tr1 tr2 => (NodeWithChildren name tr1 tr2) :: (descendents tr1 ++ descendents tr2)
   end. 
 
 Fixpoint descendentsList (trList : list tree) : list tree :=
@@ -64,9 +67,9 @@ Fixpoint string_eq (str1 str2 : string) : bool :=
 
 Fixpoint hasValue (val : string) (tr : tree) : bool :=
   match tr with
-  | Leaf _ => false
-  | NodeWithValue name value _ => string_eq val value
-  | NodeWithChildren name tr1 tr2 _ => false
+  | Leaf => false
+  | NodeWithValue name value => string_eq val value
+  | NodeWithChildren name tr1 tr2 => false
   end.
 
 Fixpoint getNodesWithValue (selectedTreeList : list tree) (val : string) : list tree :=
@@ -74,9 +77,9 @@ Fixpoint getNodesWithValue (selectedTreeList : list tree) (val : string) : list 
 
 Fixpoint hasName (name : string) (tr : tree) : bool :=
   match tr with
-  | Leaf _ => false
-  | NodeWithValue n v _ => string_eq n name
-  | NodeWithChildren n tr1 tr2 _ => string_eq n name
+  | Leaf => false
+  | NodeWithValue n v => string_eq n name
+  | NodeWithChildren n tr1 tr2 => string_eq n name
   end.
 
 Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree :=
@@ -85,14 +88,14 @@ Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree
 Fixpoint childrenWithNodeName (selection : list tree) (name : string) : list tree :=
   match selection with
   | tr :: l => (match tr with
-    | Leaf _ => nil
-    | NodeWithValue n v _ => nil
-    | NodeWithChildren n tr1 tr2 _ => (if (hasName name tr1) then (cons tr1 nil) else nil) ++ (if (hasName name tr2) then (cons tr2 nil) else nil)
+    | Leaf => nil
+    | NodeWithValue n v => nil
+    | NodeWithChildren n tr1 tr2 => (if (hasName name tr1) then (cons tr1 nil) else nil) ++ (if (hasName name tr2) then (cons tr2 nil) else nil)
     end) ++ childrenWithNodeName l name
   | nil => nil
   end.
 
-(* Fixpoint tree_eq (tr1 tr2 : tree) : bool :=
+Fixpoint tree_eq (tr1 tr2 : tree) : bool :=
   match tr1 with
   | Leaf => 
     match tr2 with
@@ -110,35 +113,20 @@ Fixpoint childrenWithNodeName (selection : list tree) (name : string) : list tre
     | NodeWithValue n2 v2 => false
     | NodeWithChildren n2 tr2_1 tr2_2 => (string_eq n1 n2) && (tree_eq tr1_1 tr2_1) && (tree_eq tr1_2 tr2_2)
     end
-  end. *)
+  end.
 
-(* Fixpoint isParent (child parent : tree) : bool :=
+Fixpoint isParent (child parent : tree) : bool :=
   match parent with
   | Leaf => false
   | NodeWithValue name value => false
   | NodeWithChildren n tr1 tr2 => (orb (tree_eq child tr1) (tree_eq child tr2))
-  end. *)
-
-Fixpoint parent (tr : tree) : list tree :=
-  match tr with
-  | Leaf parent => parent
-  | NodeWithValue _ _ parent => parent
-  | NodeWithChildren _ _ _ parent => parent
   end.
 
-Fixpoint parentsList (selection : list tree) :=
-  match selection with
-  | tr :: l => (parent tr) ++ (parentsList l)
-  | nil => nil
-  end.
+Fixpoint parents (tr root : tree) : list tree :=
+   filter (isParent tr) (descendents root).
 
-Check parent.
-Check parentsList.
-
-(** This is what it means to be a "parent": **)
-Axiom parent_child :
-  forall (tr : tree),
-  In tr (childrenList (parent tr)).
+Fixpoint parentsList (root : tree) (treeList : list tree) : list tree :=
+  flat_map (parents root) treeList.
 
 (* Can try constructing a node as follows: 
 Let n1 = NodeWithValue "number" "6.009".
@@ -196,6 +184,7 @@ Proof.
   Proof.
 
   simplify.
+
   cases root.
 
   Lemma cancel_out_identical_prefix : forall selection prefix instr1 instr2 x,
@@ -220,6 +209,7 @@ Proof.
   equality.
   case (Top.hasName n1 root1).
   case (Top.hasName n1 root2); simplify. *)
+
 
  (* unsure where to go next. Probably would need to use parent_child axiom somewhere
   * here - though unsure if taking that as an axiom is just assuming what I'm supposed to prove! *)
