@@ -19,8 +19,7 @@ Inductive xpath : Set :=
 | NodeName (name : string)
 | Value (v : string)
 | Parents
-| Descendents
-| Concat (x1 x2 : xpath).
+| Descendents.
 
 Definition selection := list tree.
 
@@ -127,56 +126,99 @@ Fixpoint parent (tr : tree) : list tree :=
   | NodeWithChildren _ _ _ parent => parent
   end.
 
-Fixpoint parentsList (selection : list tree) : list tree :=
+Fixpoint parentsList (selection : list tree) :=
   match selection with
   | tr :: l => (parent tr) ++ (parentsList l)
   | nil => nil
   end.
 
+Check parent.
+Check parentsList.
+
+(** This is what it means to be a "parent": **)
+Axiom parent_child :
+  forall (tr : tree),
+  In tr (childrenList (parent tr)).
+
 (* Can try constructing a node as follows: 
 Let n1 = NodeWithValue "number" "6.009".
 *)
 
-
-Fixpoint interp (e : xpath) (s : selection) : selection :=
-  match e with
+Fixpoint interp1 (instruction : xpath) (s : selection) : selection :=
+  match instruction with
   | NodeName n => childrenWithNodeName s n
   | Value v => getNodesWithValue s v
   | Parents => parentsList s
   | Descendents => descendentsList s
-  | Concat e1 e2 => interp e2 (interp e1 s)
+  end.
+
+Fixpoint interp (instructions : list xpath) (s : selection) : selection :=
+  match instructions with
+  | nil => s
+  | instruction :: instructions' => interp instructions' (interp1 instruction s)
   end.
 
 (** Begin proofs below **)
 
-Require Import Pset3Sig.
 Require Import List.
 Require Import Frap.
 
+Check parentsList.
+
 Theorem no_extra_children: forall root n1 n2 x,
-  In x (interp 
-  (Concat (NodeName n1)
-   (Concat (NodeName n2)
-    Parents)) (cons root nil))
-  -> In x (interp 
-    (NodeName n1)
-    (cons root nil)).
+  In x (interp [ (NodeName n1) ; (NodeName n2) ; Parents ] (cons root nil))
+  -> In x (interp [ (NodeName n1) ] (cons root nil)).
 Proof.
+
+  Check children.
+  Check parentsList.
+  Lemma parentsList_children : forall tr,
+    parentsList (children tr) = (cons tr nil).
+  Proof.
+    
+
+  Admitted.
+
+  Lemma children_with_node_name_subset_children : forall (selection : list tree) name child,
+    In child (childrenWithNodeName selection name) -> 
+      In child (childrenList selection).
+  Proof.
+    induct selection0.
+    simplify.
+    equality.
+
+    simplify.
+    cases a; simplify.
+    unfold flat_map.
+  Admitted.
+
+  Lemma parent_child_commands : forall y root n,
+    In y (interp [ NodeName n ; Parents ] [root]) -> In y [root].
+
+  Admitted.
+
+  Lemma cancel_out_identical_prefix : forall selection prefix instr1 instr2 x,
+    (In x (interp instr1 selection) -> In x (interp instr2 selection)) ->
+    (In x (interp (prefix ++ instr1) selection) -> In x (interp (prefix ++ instr2) selection)).
+  Proof.
+  Admitted.
+
+  intros root n1 n2 x.
+
+  apply cancel_out_identical_prefix with (prefix := [NodeName n1]).
+  apply parent_child_commands.
+
+(*  unfold .
+
+  apply parent_child_commands with (root := (interp1 (NodeName n1) [root])) (n := n2).
+
   simplify.
+
   cases root; simplify.
   equality.
   equality.
   case (Top.hasName n1 root1).
-  case (Top.hasName n1 root2); simplify.
+  case (Top.hasName n1 root2); simplify. *)
 
-  
-
-(* another approach: 
-  induct root; simplify.
-  equality.
-  equality.
-  case root1.
-... unsure where to go next! *)
-Admitted.
-
-(* problem here... *)
+ (* unsure where to go next. Probably would need to use parent_child axiom somewhere
+  * here - though unsure if taking that as an axiom is just assuming what I'm supposed to prove! *)
