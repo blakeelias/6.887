@@ -160,14 +160,13 @@ Fixpoint interp (instructions : list xpath) (s : selection) : selection :=
 
 (** Begin proofs below **)
 
-Require Import List.
 Require Import Frap.
 
 Check parentsList.
 
 Theorem no_extra_children: forall root n1 n2 x,
-  In x (interp [ (NodeName n1) ; (NodeName n2) ; Parents ] (cons root nil))
-  -> In x (interp [ (NodeName n1) ] (cons root nil)).
+  In x (interp [ (NodeName n1) ; (NodeName n2) ; Parents ] [root])
+  -> In x (interp [ (NodeName n1) ] [root]).
 Proof.
 
   Check children.
