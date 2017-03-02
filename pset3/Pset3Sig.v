@@ -194,8 +194,10 @@ Proof.
 
   Lemma parent_child_commands : forall y root n,
     In y (interp [ NodeName n ; Parents ] [root]) -> In y [root].
+  Proof.
 
-  Admitted.
+  simplify.
+  cases root.
 
   Lemma cancel_out_identical_prefix : forall selection prefix instr1 instr2 x,
     (In x (interp instr1 selection) -> In x (interp instr2 selection)) ->
