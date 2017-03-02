@@ -127,8 +127,11 @@ Fixpoint parent (tr : tree) : list tree :=
   | NodeWithChildren _ _ _ parent => parent
   end.
 
-Fixpoint parentsList (treeList : list tree) : list tree :=
-  flat_map parent treeList.
+Fixpoint parentsList (selection : list tree) : list tree :=
+  match selection with
+  | tr :: l => (parent tr) ++ (parentsList l)
+  | nil => nil
+  end.
 
 (* Can try constructing a node as follows: 
 Let n1 = NodeWithValue "number" "6.009".
@@ -160,7 +163,13 @@ Theorem no_extra_children: forall root n1 n2 x,
     (cons root nil)).
 Proof.
   simplify.
-  cases root.
+  cases root; simplify.
+  equality.
+  equality.
+  case (Top.hasName n1 root1).
+  case (Top.hasName n1 root2); simplify.
+
+  
 
 (* another approach: 
   induct root; simplify.
