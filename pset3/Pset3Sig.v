@@ -83,8 +83,15 @@ Fixpoint hasName (name : string) (tr : tree) : bool :=
 Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree :=
   filter (hasName name) treeList.
 
-Fixpoint childrenWithNodeName (treeList : list tree) (name : string) : list tree :=
-  getNodesWithNodeName (childrenList treeList) name.
+Fixpoint childrenWithNodeName (selection : list tree) (name : string) : list tree :=
+  match selection with
+  | tr :: l => (match tr with
+    | Leaf _ => nil
+    | NodeWithValue n v _ => nil
+    | NodeWithChildren n tr1 tr2 _ => (if (hasName name tr1) then (cons tr1 nil) else nil) ++ (if (hasName name tr2) then (cons tr2 nil) else nil)
+    end) ++ childrenWithNodeName l name
+  | nil => nil
+  end.
 
 (* Fixpoint tree_eq (tr1 tr2 : tree) : bool :=
   match tr1 with
@@ -153,7 +160,7 @@ Theorem no_extra_children: forall root n1 n2 x,
     (cons root nil)).
 Proof.
   simplify.
-
+  cases root.
 
 (* another approach: 
   induct root; simplify.
