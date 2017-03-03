@@ -6,139 +6,153 @@
 
 (** * Correctness of XML/XPATH *)
 
+Require Import Frap.
 Require Import String.
-Require Import List.
-
 
 Inductive tree :=
-| Leaf: tree
-| NodeWithValue: string -> string -> tree
-| NodeWithChildren: string -> tree -> tree -> tree.
+| Leaf (name : string) (value : string)
+| Node (name : string) (left : tree) (right : tree).
 
-(* Then a singleton is just a node without subtrees. *)
-Definition Singleton (n: string) (v: string) := NodeWithValue n v.
+Inductive tree_with_parent :=
+| Root (tr : tree)
+| Child (tr : tree) (parent: tree_with_parent).
 
 Inductive xpath : Set :=
-| NodeName (name : string)
-| Value (v : string)
+| ChildrenWithName (name : string)
+| NodesWithValue (v : string)
 | Parents
 | Descendents.
 
-Definition selection := list tree.
+Definition selection := list tree_with_parent.
 
-Fixpoint name (tr : tree) : option string := 
+Fixpoint name (tr : tree) : string := 
   match tr with
-  | Leaf => None
-  | NodeWithValue name value => Some name
-  | NodeWithChildren name tr1 tr2 => Some name
+  | Leaf name value => name
+  | Node name tr1 tr2 => name
   end.
 
 Fixpoint value (tr : tree) : option string := 
   match tr with
-  | Leaf => None
-  | NodeWithValue name value => Some value
-  | NodeWithChildren name tr1 tr2 => None
+  | Leaf name value => Some value
+  | Node name tr1 tr2 => None
   end.
 
-Fixpoint children (tr : tree) : list tree :=
+Fixpoint children (tr : tree) (p : tree_with_parent) : list tree_with_parent :=
   match tr with
-  | Leaf => nil
-  | NodeWithValue name value => nil
-  | NodeWithChildren name tr1 tr2 => tr1 :: ( cons tr2 nil )
+  | Leaf name value => nil
+  | Node name tr1 tr2 => [Child tr1 p; Child tr2 p]
 end.
 
-Fixpoint childrenList (trs : list tree) : list tree :=
-  flat_map children trs.
-
-Fixpoint descendents (tr : tree) : list tree :=
+Fixpoint child1 (tr : tree) (p : tree_with_parent) : list tree_with_parent :=
   match tr with
-  | Leaf => Leaf :: nil
-  | NodeWithValue name value => NodeWithValue name value :: nil
-  | NodeWithChildren name tr1 tr2 => (NodeWithChildren name tr1 tr2) :: (descendents tr1 ++ descendents tr2)
-  end. 
+  | Leaf name value => nil
+  | Node name tr1 tr2 => [Child tr1 p]
+end.
 
-Fixpoint descendentsList (trList : list tree) : list tree :=
-  flat_map descendents trList.
-
-Compute prefix "abc" "abcd".
-
-Fixpoint string_eq (str1 str2 : string) : bool :=
-  andb (prefix str1 str2) (prefix str2 str1).
-
-Fixpoint hasValue (val : string) (tr : tree) : bool :=
+Fixpoint child2 (tr : tree) (p : tree_with_parent) : list tree_with_parent :=
   match tr with
-  | Leaf => false
-  | NodeWithValue name value => string_eq val value
-  | NodeWithChildren name tr1 tr2 => false
-  end.
+  | Leaf name value => nil
+  | Node name tr1 tr2 => [Child tr2 p]
+end.
 
-Fixpoint getNodesWithValue (selectedTreeList : list tree) (val : string) : list tree :=
-  filter (hasValue val) selectedTreeList.
 
-Fixpoint hasName (name : string) (tr : tree) : bool :=
-  match tr with
-  | Leaf => false
-  | NodeWithValue n v => string_eq n name
-  | NodeWithChildren n tr1 tr2 => string_eq n name
-  end.
+(** Parents Command **)
 
-Fixpoint getNodesWithNodeName (treeList : list tree) (name : string) : list tree :=
-  filter (hasName name) treeList.
+Fixpoint parent (trp : tree_with_parent) : selection :=
+match trp with
+| Root _ => nil
+| Child _ parent => [parent]
+end.
 
-Fixpoint childrenWithNodeName (selection : list tree) (name : string) : list tree :=
-  match selection with
-  | tr :: l => (match tr with
-    | Leaf => nil
-    | NodeWithValue n v => nil
-    | NodeWithChildren n tr1 tr2 => (if (hasName name tr1) then (cons tr1 nil) else nil) ++ (if (hasName name tr2) then (cons tr2 nil) else nil)
-    end) ++ childrenWithNodeName l name
-  | nil => nil
-  end.
+Fixpoint parents (sel : selection) : selection :=
+  flat_map parent sel.
 
-Fixpoint tree_eq (tr1 tr2 : tree) : bool :=
-  match tr1 with
-  | Leaf => 
-    match tr2 with
-    | Leaf => true
-    | NodeWithValue n v => false
-    | NodeWithChildren n tr1 tr2 => false
+(** ChildrenWithName command **)
+Fixpoint getChildren (trp : tree_with_parent) : selection :=
+match trp with
+| Root tr => (children tr trp)
+| Child tr p => (children tr trp)
+end.
+Fixpoint getChildrenList (sel : selection) : selection :=
+flat_map getChildren sel.
+
+Fixpoint getNodesWithName (sel : selection) (name : string) : selection :=
+match sel with
+| nil => nil
+| s :: s' =>
+  (match s with
+  | Root tr =>
+    match tr with
+    | Leaf n v => if name ==v n then [s] else []
+    | Node n _ _ => if name ==v n then [s] else []
     end
-  | NodeWithValue n1 v1 => match tr2 with
-    | Leaf => false
-    | NodeWithValue n2 v2 => andb (string_eq n1 n2) (string_eq v1 v2)
-    | NodeWithChildren n tr1 tr2 => false
+  | Child tr parent => 
+    match tr with
+    | Leaf n v => if name ==v n then [s] else []
+    | Node n _ _ => if name ==v n then [s] else []
     end
-  | NodeWithChildren n1 tr1_1 tr1_2 => match tr2 with
-    | Leaf => false
-    | NodeWithValue n2 v2 => false
-    | NodeWithChildren n2 tr2_1 tr2_2 => (string_eq n1 n2) && (tree_eq tr1_1 tr2_1) && (tree_eq tr1_2 tr2_2)
+  end) ++ getNodesWithName s' name
+end.
+
+Fixpoint children_with_name (sel : selection) (name : string) : selection :=
+getNodesWithName (getChildrenList sel) name.
+
+(** NodesWithValue command **)
+
+Fixpoint nodes_with_value (sel : selection) (value : string) : selection :=
+match sel with
+| nil => nil
+| s :: s' =>
+  (match s with
+  | Root tr =>
+    match tr with
+    | Leaf _ v => if value ==v v then [s] else []
+    | Node _ _ _ => []
     end
-  end.
+  | Child tr parent => 
+    match tr with
+    | Leaf _ v => if value ==v v then [s] else []
+    | Node _ _ _ => []
+    end
+  end) ++ nodes_with_value s' value
+end.
 
-Fixpoint isParent (child parent : tree) : bool :=
-  match parent with
-  | Leaf => false
-  | NodeWithValue name value => false
-  | NodeWithChildren n tr1 tr2 => (orb (tree_eq child tr1) (tree_eq child tr2))
-  end.
 
-Fixpoint parents (tr root : tree) : list tree :=
-   filter (isParent tr) (descendents root).
+(** Descedants command **)
 
-Fixpoint parentsList (root : tree) (treeList : list tree) : list tree :=
-  flat_map (parents root) treeList.
+(*
+descendents'' fxml -> fxml_p -> list fxml_p
+descendents' : fxml_p -> list fxml_p
+  descendents' calls descendents'' 
+
+Fixpoint descendants'' (tr : tree) (trp : tree_with_parent) : selection :=
+match tr with
+| Leaf n v => nil
+| Node n tr1 tr2 => tr :: (descendants (child1 tr trp)) ++ (descendants (child2 tr trp))
+end.
+trp :: descendants'' (children tr) (getChildren trp)
+
+Fixpoint descendants' (trp : tree_with_parent) : selection :=
+match trp with
+| Root tr => descendants'' tr trp
+| Child tr _ => descendants'' tr trp
+end.
+
+Fixpoint descendants (sel : selection) : selection :=
+sel ++ (descendants getChildren sel). *)
+
 
 (* Can try constructing a node as follows: 
 Let n1 = NodeWithValue "number" "6.009".
 *)
 
 Fixpoint interp1 (instruction : xpath) (s : selection) : selection :=
-  match instruction with
-  | NodeName n => childrenWithNodeName s n
-  | Value v => getNodesWithValue s v
-  | Parents => parentsList s
-  | Descendents => descendentsList s
-  end.
+match instruction with
+| ChildrenWithName n => children_with_name s n
+| NodesWithValue v => nodes_with_value s v
+| Parents => parents s
+| Descendents => nil (* put this back in when I have a function for it! *)
+end.
 
 Fixpoint interp (instructions : list xpath) (s : selection) : selection :=
   match instructions with
