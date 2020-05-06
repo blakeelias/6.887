@@ -162,29 +162,31 @@ Fixpoint interp (instructions : list xpath) (s : selection) : selection :=
 
 (** Begin proofs below **)
 
-Require Import Frap.
-
-Check parentsList.
+Theorem flat_map_append {A B} : forall (f : A -> list B) x y,
+(flat_map f (x ++ y)) = (flat_map f x) ++ (flat_map f y).
+Proof.
+induction x; simplify.
+equality.
+rewrite IHx.
+apply app_assoc.
+Qed.
 
 Theorem no_extra_children: forall root n1 n2 x,
-  In x (interp [ (NodeName n1) ; (NodeName n2) ; Parents ] [root])
-  -> In x (interp [ (NodeName n1) ] [root]).
+  In x (interp [ (ChildrenWithName n1) ; (ChildrenWithName n2) ; Parents ] [root])
+  -> In x (interp [ (ChildrenWithName n1) ] [root]).
 Proof.
 
-  Check children.
-  Check parentsList.
-  Lemma parentsList_children : forall tr,
-    parentsList (children tr) = (cons tr nil).
-  Proof.
-    
 
-  Admitted.
-
-  Lemma children_with_node_name_subset_children : forall (selection : list tree) name child,
-    In child (childrenWithNodeName selection name) -> 
-      In child (childrenList selection).
+Lemma parentsList_children : forall sel x,
+    In x (parents (getChildrenList sel)) -> In x sel.
   Proof.
-    induct selection0.
+Admitted.
+
+  Lemma children_with_node_name_subset_children : forall (sel : selection) name child,
+    In child (children_with_name sel name) -> 
+      In child (getChildrenList sel).
+  Proof.
+    induct sel.
     simplify.
     equality.
 
@@ -194,7 +196,7 @@ Proof.
   Admitted.
 
   Lemma parent_child_commands : forall y root n,
-    In y (interp [ NodeName n ; Parents ] [root]) -> In y [root].
+    In y (interp [ ChildrenWithName n ; Parents ] [root]) -> In y [root].
   Proof.
 
   simplify.
